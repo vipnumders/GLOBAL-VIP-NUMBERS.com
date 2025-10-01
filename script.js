@@ -327,3 +327,4 @@ function filterByPrefixSuffix(rows, startsWithInput, endsWithInput) {
         <input type="text" id="ends-with-input" placeholder="e.g., 000,999">
     </div>
 </div>
+
