@@ -348,17 +348,29 @@
                             <i class="fas fa-search"></i> Search
                         </button>
                     </div>
+                    <div class="enhanced-search-input-container">
+                        <input type="text" id="exclude-digits-input" class="enhanced-search-input" placeholder="Exclude digits...">
+                        <button id="exclude-digits-button" class="enhanced-search-button">
+                            <i class="fas fa-search-minus"></i> Exclude
+                        </button>
+                    </div>
                 </div>
+
             </div>
         </div>
             <style>
                 .search-form{
                     display: none;
                 }
+                .enhanced-search-input-container {
+                    display: flex;
+                    align-items: center;
+                    margin-top: 10px;
+                }
             </style>
         </div>
                 <!-- Optional Bar 1: Specific Digit Search -->
-        <div class="optional-bar">
+        <div class="optional-bar" hidden>
             <div class="optional-bar-title">Search by Specific Digits</div>
             <div class="optional-bar-content">
              <div class="digit-search-container">
@@ -376,6 +388,7 @@
         <label><input type="checkbox" class="digit-checkbox" value="8"> 8</label>
         <label><input type="checkbox" class="digit-checkbox" value="9"> 9</label>
     </div>
+   
 </div>
 
             </div>
@@ -421,7 +434,7 @@
                             Sum of Numbers
                             <div class="filter-container">
                                 <input type="text" id="sumFilter" class="search-filter-input" 
-                                    placeholder="Enter sum (e.g.,  like = 2)">
+                                    placeholder="Enter sum (e.g., In Two Digits =42)">
                             </div>
                         </th>
                         <th>
@@ -482,11 +495,17 @@ document.getElementById('enhanced-search-input').addEventListener('keypress', fu
     }
 });
 
+document.getElementById('exclude-digits-button').addEventListener('click', function() {
+    performEnhancedSearch();
+});
+
 // Function to perform enhanced search based on selected options
 function performEnhancedSearch() {
     const searchDigits = document.getElementById('enhanced-search-input').value.trim();
-    if (!searchDigits) {
-        alert('Please enter digits to search for.');
+    const excludeDigits = document.getElementById('exclude-digits-input').value.trim();
+
+    if (!searchDigits && !excludeDigits) {
+        alert('Please enter digits to search for or exclude.');
         return;
     }
     
@@ -494,9 +513,19 @@ function performEnhancedSearch() {
     const searchType = document.querySelector('input[name="searchType"]:checked').value;
     
     // Filter the cell data based on search type and digits
-    const results = cellData.filter(row => {
+    let results = cellData.filter(row => {
         const cellNumber = row[0] ? row[0].toString() : '';
         
+        if (excludeDigits) {
+            for (let i = 0; i < excludeDigits.length; i++) {
+                if (cellNumber.includes(excludeDigits[i])) {
+                    return false;
+                }
+            }
+        }
+
+        if (!searchDigits) return true;
+
         switch(searchType) {
             case 'startsWith':
                 return cellNumber.startsWith(searchDigits);
@@ -518,11 +547,18 @@ function performEnhancedSearch() {
     populateTable(filteredResults, searchDigits);
     
     // Update the main search input to show what we're searching for
-    document.getElementById('search-input').value = 
-        `${searchType === 'startsWith' ? 'Starts with' : 
+    let searchTermText = '';
+    if (searchDigits) {
+        searchTermText += `${searchType === 'startsWith' ? 'Starts with' : 
           searchType === 'endsWith' ? 'Ends with' : 
           searchType === 'exactMatch' ? 'Exact match' : 
           'Contains'}: ${searchDigits}`;
+    }
+    if (excludeDigits) {
+        if (searchTermText) searchTermText += ', ';
+        searchTermText += `excluding ${excludeDigits}`;
+    }
+    document.getElementById('search-input').value = searchTermText;
 }
 
         // Event listener for the "Select All" checkbox
@@ -549,8 +585,7 @@ document.querySelectorAll('.digit-checkbox').forEach(checkbox => {
     });
 });
 
-       
-
+      
         // Pagination variables
         let currentPage = 1;
         let resultsPerPage = 20;
@@ -613,16 +648,8 @@ document.querySelectorAll('.digit-checkbox').forEach(checkbox => {
                 // Price range filter
                 let priceMatch = true;
                 if (priceRangeFilter) {
-                    if (priceRangeFilter === 'free') {
-                        priceMatch = (price === 0);
-                    } else {
-                        const [minPrice, maxPrice] = priceRangeFilter.split('-').map(Number);
-                        if (!isNaN(minPrice) && !isNaN(maxPrice)) {
-                            priceMatch = price >= minPrice && price <= maxPrice;
-                        } else {
-                            priceMatch = false;
-                        }
-                    }
+                    const [minPrice, maxPrice] = priceRangeFilter.split('-').map(Number);
+                    priceMatch = price >= minPrice && price <= maxPrice;
                 }
                 
                 // Sum filter
@@ -760,7 +787,7 @@ document.querySelectorAll('.digit-checkbox').forEach(checkbox => {
                 const tr = document.createElement('tr');
                 
                 // Calculate the sum of digits for the cell number
-                const cellNumber = row[0] || '';
+                const cellNumber = row[1] || '';
                 const digitSum = calculateDigitSum(cellNumber);
 
                 // Create cells for each column
@@ -790,7 +817,7 @@ document.querySelectorAll('.digit-checkbox').forEach(checkbox => {
                 const tr = document.createElement('tr');
                 
                 // Calculate the sum of digits for the cell number
-                const cellNumber = row[0] || '';
+                const cellNumber = row[1] || '';
                 const digitSum = calculateDigitSum(cellNumber);
 
                 // Create cells for each column
@@ -844,11 +871,13 @@ document.querySelectorAll('.digit-checkbox').forEach(checkbox => {
 
         // Event listener for Excel export button
         document.getElementById('export-excel').addEventListener('click', function () {
-            if (currentResults && currentResults.length > 0) {
-                exportToExcel(currentResults);
-            } else {
-                // If there are no results, you might want to inform the user.
-                alert("No data available to export.");
+            const searchTerm = document.getElementById('search-input').value.trim();
+            if (searchTerm) {
+                const results = searchCellData(searchTerm);
+                const filteredResults = applyFilters(results);
+                if (filteredResults.length > 0) {
+                    exportToExcel(filteredResults);
+                }
             }
         });
 
@@ -859,7 +888,7 @@ document.querySelectorAll('.digit-checkbox').forEach(checkbox => {
                 ['Number', 'Status', 'Sum of Numbers', 'Category Type', 'Price'],
                 ...data.map(row => {
                     // Create a new row with the sum of digits
-                    const cellNumber = row[0] || '';
+                    const cellNumber = row[1] || '';
                     const digitSum = calculateDigitSum(cellNumber);
                     return [
                         row[0], row[2], digitSum, row[4], row[5]
@@ -1019,7 +1048,7 @@ document.querySelectorAll('.digit-checkbox').forEach(checkbox => {
         });
     </script>
     <script src="script.js"></script>
-    <script src="number.js"></script>
+     <script src="number.js"></script>
     <!-- Firebase Google Authentication + Firestore -->
     <script type="module">
       // Import Firebase SDKs
